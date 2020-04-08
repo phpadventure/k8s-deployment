@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ht-my-app
+  namespace: ht-2
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: ht-my-app
+    spec:
+      containers:
+        - name: my-app
+          image: us.gcr.io/lohika-kub/ht-my-app:2.0.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          env:
+            - name: WHO_IS_YOUR_DADDY
+              value: Andriy
+          readinessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 20
+        - name: echo
+          image: hashicorp/http-echo
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 81
+          env:
+            - name: MESSAGE
+              value: This is echo service
+          readinessProbe:
+            tcpSocket:
+              port: 81
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 81
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          args: ["-text","$(MESSAGE)", "-listen",":81"]
+  selector:
+    matchLabels:
+      app: ht-my-app
