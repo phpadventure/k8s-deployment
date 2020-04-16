@@ -1,24 +1,86 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-app-config
+  namespace: ht-2
+type: Opaque
+data:
+  secretPhrase: U2hhemFtIQ==
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: echo-config
+  namespace: ht-2
+data:
+  message: This is echo service
+---
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: my-app-pv
+spec:
+  accessModes:
+    - ReadWriteMany
+  capacity:
+    storage: 2Gi
+  gcePersistentDisk:
+    fsType: ext4
+    pdName: lohika-my-app-disk
+  volumeMode: Filesystem
+  storageClassName: standard
+  persistentVolumeReclaimPolicy: Retain
+  #  persistentVolumeReclaimPolicy: Delete
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-app-pvc
+  namespace: ht-2
+spec:
+  volumeName: my-app-pv
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+#  storageClassName: standard
+#  volumeMode: Filesystem
+---
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ht-my-app
   namespace: ht-2
 spec:
-  replicas: 2
+  replicas: 1
   template:
     metadata:
       labels:
         app: ht-my-app
     spec:
+      volumes:
+        - name: my-app-volume
+          persistentVolumeClaim:
+            claimName: my-app-pvc
       containers:
         - name: my-app
-          image: us.gcr.io/lohika-kub/ht-my-app:2.0.0
+          image: us.gcr.io/lohika-kub/ht-my-app:3.0.0
           imagePullPolicy: Always
           ports:
             - containerPort: 80
           env:
             - name: WHO_IS_YOUR_DADDY
               value: Andriy
+            - name: SECRET_PHRASE
+              valueFrom:
+                secretKeyRef:
+                  name: my-app-config
+                  key: secretPhrase
           readinessProbe:
             tcpSocket:
               port: 80
@@ -29,6 +91,9 @@ spec:
               port: 80
             initialDelaySeconds: 15
             periodSeconds: 20
+          volumeMounts:
+            - mountPath: "/my-app/src/logs"
+              name: my-app-volume
         - name: echo
           image: hashicorp/http-echo
           imagePullPolicy: Always
@@ -36,7 +101,10 @@ spec:
             - containerPort: 81
           env:
             - name: MESSAGE
-              value: This is echo service
+              valueFrom:
+                configMapKeyRef:
+                  name: echo-config
+                  key: message
           readinessProbe:
             tcpSocket:
               port: 81

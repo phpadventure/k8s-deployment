@@ -26,6 +26,8 @@ WORKDIR /my-app
 
 COPY . /my-app
 
+RUN chown www-data /my-app/src/logs && chmod 744 /my-app/src/logs
+
 RUN chmod +x /my-app/entrypoint.sh
 
 EXPOSE 80
